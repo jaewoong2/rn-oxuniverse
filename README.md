@@ -1,6 +1,6 @@
 # Bamtoly RN Mobile
 
-React Native (Expo) scaffold for migrating the Next.js + TanStack Query web experience (`predict_stock_react`) into a fully native app. This project follows the migration blueprint in `../docs/react-native-migration.md` and tracks execution steps via `../docs/todo-list.md`.
+React Native (Expo) scaffold for migrating the Next.js + TanStack Query web experience (`predict_stock_react`) into a fully native app. This project follows the migration blueprint in `docs/react-native-migration.md` and tracks execution steps via `docs/todo-list.md`.
 
 ## Stack
 - Expo SDK 54 (React Native 0.81)
@@ -29,16 +29,17 @@ React Native (Expo) scaffold for migrating the Next.js + TanStack Query web expe
 
 ## Project Structure
 ```
-mobile/
-  src/
-    components/ui     # Card, Badge, Button primitives
-    navigation        # Root navigator + screens
-    providers         # App-wide providers (React Query, SafeArea, etc.)
-    services/api      # API clients
-    store             # zustand stores (filters, auth later)
-    theme             # color tokens
-    utils             # env/date helpers
-  App.tsx             # entry mounting providers + navigator
+src/
+  components/ui     # Card, Badge, Button primitives
+  navigation        # Root navigator + screens
+  providers         # React Query, SafeArea, Gesture providers
+  services/api      # API clients
+  store             # zustand stores (filters, auth, etc.)
+  theme             # color tokens
+  utils             # env/date helpers
+assets/             # Expo asset bundle
+App.tsx             # entry mounting providers + navigator
+docs/               # migration blueprint + todo tracking
 ```
 
 ## Development Workflow
@@ -49,4 +50,3 @@ mobile/
 
 ## Next Steps
 Refer to Phase 2+ items in `docs/todo-list.md` (Auth layer, filter enhancements, React Query hooks, screens). Keep README updated as major modules land.
-# rn-oxuniverse
