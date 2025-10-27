@@ -14,6 +14,18 @@ module.exports = {
         textPrimary: '#f8fafc',
         textSecondary: '#94a3b8',
       },
+      fontFamily: {
+        sans: [
+          '-apple-system',
+          'BlinkMacSystemFont',
+          'Segoe UI',
+          'Roboto',
+          'Noto Sans KR',
+          'Malgun Gothic',
+          'Apple SD Gothic Neo',
+          'sans-serif',
+        ],
+      },
     },
   },
   plugins: [],

@@ -1,24 +1,19 @@
+import './global.css';
 import { StatusBar } from 'expo-status-bar';
-import { RootNavigator } from './src/navigation';
 import { AppProviders } from './src/providers/AppProviders';
-import { useDeepLinking } from './src/hooks/useDeepLinking';
+import { RootNavigator } from './src/navigation';
 
-function AppContent() {
-  // Deep linking 초기화
-  useDeepLinking();
-
-  return (
-    <>
-      <StatusBar style="light" />
-      <RootNavigator />
-    </>
-  );
-}
-
+/**
+ * App: 최상위 컴포넌트
+ * Provider 스택: QueryClient → SafeArea → GestureHandler → Navigation
+ *
+ * useDeepLinking은 RootNavigator 내부(NavigationContainer 컨텍스트)에서 호출됨
+ */
 export default function App() {
   return (
     <AppProviders>
-      <AppContent />
+      <StatusBar style="light" />
+      <RootNavigator />
     </AppProviders>
   );
 }

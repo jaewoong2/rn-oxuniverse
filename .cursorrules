@@ -1,0 +1,330 @@
+# Bamtoly RN OXUniverse - AI Coding Assistant Rules
+
+## 🎯 프로젝트 개요
+- **프로젝트명**: Bamtoly RN OXUniverse (Mobile)
+- **목적**: Next.js 웹앱(predict_stock_react)을 React Native로 마이그레이션하여 네이티브 모바일 앱 구현
+- **스택**: Expo SDK 54, React Native 0.81, TypeScript, TanStack Query, Zustand, NativeWind/Tailwind
+- **주요 기능**: AI 주식 예측 분석, 실시간 시세, OAuth/매직링크 인증, 딥링킹
+
+## 📁 프로젝트 구조
+
+```
+rn-oxuniverse/
+├── App.tsx                  # 앱 진입점 (AppProviders + RootNavigator)
+├── index.ts                 # Expo 등록
+├── src/
+│   ├── components/ui/       # Card, Badge, Button 등 공통 UI 컴포넌트
+│   ├── navigation/          # React Navigation 스택 + 라우팅
+│   ├── providers/           # React Query, SafeArea, Gesture 프로바이더
+│   ├── services/api/        # API 클라이언트 (SecureStore 토큰 + 401 처리)
+│   ├── store/               # Zustand 전역 상태 (filters, auth)
+│   ├── hooks/               # 커스텀 훅 (useDeepLinking, useAuth 등)
+│   ├── screens/             # 주요 화면 (Dashboard, SignalDetail, Prediction, Auth)
+│   ├── theme/               # 색상 토큰, 디자인 시스템
+│   └── utils/               # env, date 헬퍼
+├── docs/
+│   ├── react-native-migration.md  # 웹→RN 마이그레이션 블루프린트
+│   └── todo-list.md               # Phase별 작업 체크리스트
+├── tailwind.config.js       # NativeWind 커스텀 테마 (다크모드 중심)
+└── tsconfig.json            # TS 설정 (baseUrl, @/* 경로 alias)
+```
+
+## 🛠 기술 스택 & 의존성
+
+### 핵심 라이브러리
+- **React Navigation v7**: `@react-navigation/native`, `@react-navigation/native-stack`
+- **TanStack Query v5**: `@tanstack/react-query` (서버 상태 관리)
+- **Zustand**: 전역 클라이언트 상태 (필터, 인증 UI 상태)
+- **NativeWind v4**: Tailwind 기반 스타일링
+- **Expo Modules**: SecureStore, AsyncStorage, Linking, StatusBar, WebBrowser
+
+### 추가 필수 패키지
+- `react-native-gesture-handler`, `react-native-reanimated`, `react-native-safe-area-context`
+- `clsx` (조건부 클래스 결합)
+
+## 🎨 코딩 스타일 & 컨벤션
+
+### 1. TypeScript
+- **엄격 모드**: `strict: true` 유지, `any` 금지
+- **경로 별칭**: `@/*`로 `src/*` 참조 (`import { Card } from '@/components/ui'`)
+- **타입 우선**: interface > type alias, Props는 명시적 export
+
+### 2. React Native
+- **Functional Components**: 함수형 컴포넌트 + Hooks 기반 (클래스 컴포넌트 금지)
+- **Expo 호환성**: Expo SDK 범위 내 패키지만 사용. 새 패키지는 `npx expo install <pkg>`
+- **플랫폼 분기**: `Platform.OS`보다는 Expo API 우선 (크로스 플랫폼 추상화)
+
+### 3. 스타일링 (NativeWind)
+- **Tailwind 클래스**: `className` prop 사용 (`<View className="bg-background p-4">`)
+- **커스텀 색상**: `tailwind.config.js`에 정의된 토큰 활용
+  ```
+  background: '#090b11'  surface: '#11131a'  card: '#181c25'
+  accent: '#5b8cf7'      success: '#22c55e'  danger: '#ef4444'
+  textPrimary: '#f8fafc' textSecondary: '#94a3b8'
+  ```
+- **조건부 스타일**: `clsx()`로 동적 클래스 조합
+- **인라인 스타일 최소화**: StyleSheet는 NativeWind로 해결 안 되는 경우만
+
+### 4. 데이터 패칭 (TanStack Query)
+- **Query Keys**: `SIGNAL_KEYS`, `AUTH_KEYS`, `PREDICTION_KEYS` 등 모듈화
+- **Hook 시그니처**: 기존 웹 훅과 동일하게 유지 (`options`, `enabled`, `initialData`)
+- **Optimistic Updates**: mutation 시 캐시 즉시 업데이트 + 롤백 처리
+- **Stale Time 설정**: 시세 데이터(짧게), 정적 데이터(길게) 차별화
+
+### 5. 전역 상태 (Zustand)
+- **필터 스토어**: `date`, `q`, `models`, `conditions`, `strategy_type`, `page` 관리
+- **Persist 미들웨어**: AsyncStorage로 필터 상태 영속화
+- **Pagination Reset**: 조건 변경 시 자동으로 `page: 1`
+- **Auth Store**: SecureStore 토큰 + `isAuthenticated` flag (UI state만)
+
+### 6. 네이밍 컨벤션
+- **파일명**: PascalCase (컴포넌트), camelCase (훅, 유틸)
+- **컴포넌트**: `<CardContainer>`, `<SignalDetailScreen>`, `<PredictionForm>`
+- **훅**: `useSignalDataByNameAndDate`, `useFilterStore`, `useTodaySession`
+- **상수**: SCREAMING_SNAKE_CASE (`API_BASE_URL`, `SESSION_PHASE`)
+
+## 🔐 인증 & 보안
+
+### 토큰 관리
+- **SecureStore**: 액세스 토큰 저장 (`expo-secure-store`)
+- **AsyncStorage**: 리프레시 토큰 or 비민감 데이터
+- **401 Handling**: API 클라이언트에서 `auth:unauthorized` 이벤트 발생 → AuthProvider가 로그아웃 처리
+
+### OAuth 플로우
+- **expo-auth-session**: Google/Kakao/Apple OAuth 2.0 PKCE 플로우
+- **Redirect URI**: 앱 스킴 등록 필수 (`myapp://oauth-callback`)
+- **매직링크**: 이메일 입력 → 백엔드 API 호출 → `useMyProfile` 2초 폴링
+
+### 환경 변수
+- **Prefix**: `EXPO_PUBLIC_*` (클라이언트 노출 가능)
+- **민감 정보**: 백엔드에서 처리, 클라이언트에 하드코딩 금지
+- **파일**: `.env.example` 템플릿 제공, `.env`는 .gitignore
+
+## 🧭 네비게이션 & 딥링킹
+
+### React Navigation
+- **Stack Navigator**: 기본 스택 (Dashboard → SignalDetail → Prediction)
+- **Screen Options**: 헤더 커스터마이징, gestureEnabled, animation 설정
+- **타입 안전성**: `RootStackParamList` 정의 → `navigation.navigate<'Screen'>(...)`
+
+### 딥링킹
+- **Linking Config**: `myapp://detail?symbol=AAPL&date=2025-01-15`
+- **Query Params 파싱**: `useDeepLinking` 훅에서 `Linking.addEventListener('url')` 구독
+- **Filter Store 동기화**: URL 파라미터 → zustand store 업데이트
+
+## 📊 주요 기능 구현 가이드
+
+### 1. Dashboard Screen
+- **섹션**: Stats, Trending Predictions, News, Signal List, Market Changes
+- **리스트**: `FlatList` + pagination (filter store의 `page` state 연동)
+- **Skeleton**: Suspense boundary 대신 조건부 로딩 UI (`isLoading` 상태)
+
+### 2. Signal Detail Screen
+- **Route Params**: `{ symbol, aiModel?, date? }`
+- **Tabs**: `react-native-tab-view` or `@react-navigation/material-top-tabs`
+  - Overview, Analysis, Market Data, Results
+- **AI Model Picker**: Dropdown or Segment Control
+- **날짜 선택**: `@react-native-community/datetimepicker` + bottom sheet
+- **CTA**: "예측하기" 버튼 → 미로그인 시 Login Screen, 로그인 시 Prediction Screen
+
+### 3. Prediction Screen
+- **Screen Guard**:
+  ```ts
+  const { data: session } = useTodaySession();
+  const canPredict = session?.phase === 'OPEN' && filterStore.date === session.trading_day;
+  ```
+- **가격 카드**: `useCurrentPrice`, `useEodPrice` 훅으로 실시간가 + 전일가 조회
+- **폼**: O/X 버튼, 이미 제출했으면 update mutation 경로
+- **Unauthorized**: try/catch로 잡아 `authStore.promptLogin()` 호출
+
+### 4. Auth Flow
+- **Login Screen**: Email 입력 → Magic Link → Polling (`useMyProfile` 2초 간격)
+- **OAuth**: WebBrowser.openAuthSessionAsync → Redirect → Token 저장
+- **Logout**: SecureStore clear + React Query 캐시 초기화 + Dashboard로 이동
+
+## 🚫 금지 사항
+
+1. **직접적인 네이티브 모듈 추가**: Expo Managed Workflow 범위 유지 (eject 금지)
+2. **Hardcoded API Keys**: 환경 변수 or 백엔드 Proxy 사용
+3. **Web 전용 라이브러리**: `window`, `document` 의존 패키지 금지
+4. **글로벌 State 남용**: 서버 상태는 React Query, 클라이언트 상태만 Zustand
+5. **CSS-in-JS 라이브러리**: styled-components, emotion 대신 NativeWind
+6. **절대 경로 없이 상대 경로**: `../../components` 대신 `@/components`
+
+## 🧪 테스트 & QA
+
+### 테스트 전략
+- **Unit**: 유틸 함수, Zustand 액션 (Jest)
+- **Integration**: React Query 훅 + MSW mock (React Testing Library)
+- **E2E**: Detox (로그인 → 대시보드 → 예측 플로우)
+
+### QA 체크리스트
+- [ ] 네트워크 오프라인 시 에러 핸들링
+- [ ] 401 발생 시 자동 로그인 화면 이동
+- [ ] 날짜/필터 변경 시 데이터 즉시 반영
+- [ ] 딥링크로 특정 화면 진입 가능
+- [ ] iOS/Android 양 플랫폼 UI 일관성
+
+## 📖 참고 문서
+
+### 필수 읽기
+1. `docs/react-native-migration.md`: 웹→RN 마이그레이션 전체 블루프린트
+2. `docs/todo-list.md`: Phase별 작업 체크리스트 (진행 상황 추적)
+3. `README.md`: Getting Started, 프로젝트 구조 개요
+
+### 외부 문서
+- [Expo Documentation](https://docs.expo.dev/)
+- [React Navigation](https://reactnavigation.org/)
+- [TanStack Query](https://tanstack.com/query/latest)
+- [NativeWind](https://www.nativewind.dev/)
+
+## 💡 개발 워크플로우
+
+### 시작하기
+```bash
+npm install           # 의존성 설치
+npm run start         # Expo 개발 서버 (QR 코드)
+npm run ios           # iOS 시뮬레이터
+npm run android       # Android 에뮬레이터
+```
+
+### 새 기능 추가 시
+1. `docs/todo-list.md`에서 해당 Phase 확인
+2. 웹 프로젝트(`predict_stock_react`)에서 동일 기능 참조
+3. RN 전용 컴포넌트/훅 작성, 웹과 동일한 props/options 유지
+4. `docs/todo-list.md` 체크박스 업데이트
+
+### 마이그레이션 패턴 (Strangler Fig)
+- 웹 기능과 1:1 패리티 유지
+- Feature Flag로 점진적 롤아웃
+- Consumer-driven contract test로 API 스키마 검증
+
+## 🔄 React Query 최적 활용
+
+### Query Key 구조
+```ts
+// services/api/queryKeys.ts
+export const SIGNAL_KEYS = {
+  all: ['signals'] as const,
+  lists: () => [...SIGNAL_KEYS.all, 'list'] as const,
+  list: (filters: SignalFilters) => [...SIGNAL_KEYS.lists(), filters] as const,
+  details: () => [...SIGNAL_KEYS.all, 'detail'] as const,
+  detail: (symbol: string, date: string) => [...SIGNAL_KEYS.details(), symbol, date] as const,
+};
+```
+
+### 캐싱 전략
+```ts
+// 정적 데이터 (AI 모델 리스트, 전략 타입)
+staleTime: 1000 * 60 * 60,  // 1시간
+
+// 동적 데이터 (주식 시세, 뉴스)
+staleTime: 1000 * 60 * 5,   // 5분
+
+// 실시간 데이터 (현재가)
+staleTime: 1000 * 30,       // 30초
+refetchInterval: 1000 * 60, // 1분마다 백그라운드 리페치
+```
+
+### Mutation 예시
+```ts
+const { mutate: submitPrediction } = useMutation({
+  mutationFn: (data: PredictionInput) => predictionService.submit(data),
+  onMutate: async (newPrediction) => {
+    // Optimistic Update
+    await queryClient.cancelQueries({ queryKey: PREDICTION_KEYS.today });
+    const previous = queryClient.getQueryData(PREDICTION_KEYS.today);
+    queryClient.setQueryData(PREDICTION_KEYS.today, [...previous, newPrediction]);
+    return { previous };
+  },
+  onError: (err, variables, context) => {
+    // 롤백
+    queryClient.setQueryData(PREDICTION_KEYS.today, context.previous);
+  },
+  onSuccess: () => {
+    queryClient.invalidateQueries({ queryKey: PREDICTION_KEYS.today });
+  },
+});
+```
+
+## 🎯 Phase별 우선순위 (docs/todo-list.md 기준)
+
+### ✅ Phase 1 완료 (Foundation)
+- [x] Expo 초기화, 패키지 설치
+- [x] `.env` 스키마
+- [x] `api/client.ts` + SecureStore 연동
+- [x] `AppProviders.tsx`
+- [x] 공통 UI Kit (Card, Badge, Button)
+
+### 🚧 Phase 2-3 진행 중
+- [ ] `authService.ts` 포팅 + AuthProvider
+- [ ] Login Screen (Magic Link + OAuth)
+- [ ] Filter Store 완성 (debounce, pagination reset)
+- [ ] 데이터 훅 포팅 (useSignalDataByNameAndDate 등)
+
+### 📋 Phase 4-7 대기 중
+- Dashboard Screen 구현
+- Signal Detail Screen + Tabs
+- Prediction Screen + 세션 제약
+- Feature Flag, Analytics, E2E 테스트
+
+## 🤖 AI Assistant 지침
+
+### 코드 생성 시
+1. **TypeScript 타입 먼저**: 함수 시그니처, Props interface 정의 후 구현
+2. **Expo 호환 확인**: 사용하려는 패키지가 Expo SDK에 포함되어 있는지 확인
+3. **웹 코드 참조**: `predict_stock_react` 프로젝트의 동일 기능을 먼저 찾아 로직 재사용
+4. **NativeWind 우선**: StyleSheet보다 `className` prop 사용
+5. **에러 처리 필수**: try/catch + 사용자 친화적 에러 메시지
+
+### 리팩토링 시
+1. **props drilling 방지**: 3단계 이상은 Context or Zustand
+2. **메모이제이션**: `useMemo`, `useCallback`로 불필요한 리렌더 방지
+3. **코드 분할**: 화면당 파일 크기 300줄 이하 목표
+4. **공통 로직 추출**: 3번 이상 반복되면 커스텀 훅 or 유틸 함수
+
+### 질문 응답 시
+1. **문서 먼저 참조**: `docs/` 폴더 내용 우선 체크
+2. **웹 프로젝트 비교**: 웹에서 어떻게 구현했는지 설명
+3. **대안 제시**: Expo 제약이 있으면 우회 방법 제안
+4. **단계별 설명**: 복잡한 기능은 Phase 단위로 분해
+
+### 버그 수정 시
+1. **재현 시나리오**: 어떤 상황에서 발생하는지 명확히
+2. **근본 원인**: 증상이 아닌 원인 해결
+3. **테스트 가능성**: 수정 후 검증 방법 제시
+4. **사이드 이펙트**: 다른 기능에 영향 없는지 확인
+
+## 🔥 Hot Tips
+
+- **DevTools**: React Query DevTools는 개발 모드에서만 활성화 (`__DEV__` 체크)
+- **번들 최적화**: Hermes 엔진 사용, `react-native-bundle-visualizer`로 번들 크기 모니터링
+- **성능 프로파일링**: Flipper + React DevTools Profiler
+- **디버깅**: `console.log` 대신 Reactotron or Flipper 활용
+- **CI/CD**: EAS Build + EAS Update로 OTA 업데이트 파이프라인 구축
+
+## 📝 커밋 메시지 컨벤션
+
+```
+feat: 새 기능 추가
+fix: 버그 수정
+refactor: 코드 리팩토링 (기능 변경 없음)
+style: 코드 포맷팅 (로직 변경 없음)
+docs: 문서 업데이트
+test: 테스트 추가/수정
+chore: 빌드, 설정 변경
+```
+
+예시:
+```
+feat: add SignalDetailScreen with tab navigation
+fix: filter store not persisting date correctly
+refactor: extract price card to reusable component
+```
+
+---
+
+**마지막 업데이트**: 2025-01-15
+**작성자**: AI Assistant
+**버전**: 1.0.0
+

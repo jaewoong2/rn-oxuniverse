@@ -1,0 +1,147 @@
+# Bamtoly RN OXUniverse – Codex CLI Rulebook
+
+Authoritative sources: `.cursorrules` (v1.0.0, 2025‑01‑15) and `.claude/CLAUDE.md`. Keep this guide synchronized with both files whenever constraints change so Codex, Cursor, and Claude share the same playbook.
+
+## 1. Mission & Stack Context
+- **Goal**: Deliver the Expo-native port of `predict_stock_react`. Current focus = Phase 2‑3 (auth service + UI, filter store, data hooks). Later phases (dashboard, signal detail, prediction, analytics) depend on this groundwork.
+- **Stack contract**: React Native 0.81.5, Expo SDK ~54, TypeScript ~5.9 (strict), TanStack Query v5, Zustand, NativeWind 4.2.1, React Navigation v7 Native Stack, AsyncStorage + SecureStore, Expo modules only (`npx expo install` for new deps).
+- **App topology**: `App.tsx` → `AppProviders` → `RootNavigator` → Screens with `useDeepLinking` centralizing URI handling. All feature code belongs under `src/` in the established folders (components/ui, screens, hooks, navigation, providers, services/api, store, utils, theme, types).
+
+## 2. 🔴 Critical Rules (Never Compromise)
+- **TypeScript safety**: No `any`, no `@ts-ignore`, define interfaces/types before JSX. Use `unknown` + guards when necessary. `npx tsc --noEmit` must pass before handoff/commit.
+- **Expo-first APIs**: Always reach for Expo modules (`expo-secure-store`, `expo-linking`, `expo-camera`, etc.) before platform-specific or bare React Native APIs to keep the managed workflow compatible.
+- **Sensitive storage**: Tokens, credentials, API keys must live in SecureStore. AsyncStorage is reserved for non-sensitive persistence (filters, UI prefs).
+- **File placement**: New source files must live inside a meaningful `src/` subdirectory. No stray files at project root or directly under `src/`—pick the correct folder per the decision tree below.
+- **Navigation contracts**: Every new route extends `RootStackParamList`, uses `NativeStackScreenProps`, and participates in deep linking via the shared config/hook.
+- **API hygiene**: Centralize HTTP logic in `src/services/api/*` with query key helpers and 401 handling. Never duplicate base URLs or bypass the shared client.
+
+## 3. 🟡 Important Patterns (Strong Preference)
+- **NativeWind > inline styles**: Use `className` with Tailwind tokens (`background`, `surface`, `card`, `accent`, etc.). `StyleSheet.create` is only for cases NativeWind cannot express; document the exception.
+- **Component structure**: Imports ordered React → React Native → 3rd party → local. Declare props/types, then component body: hooks → handlers → render. Keep files under 300 lines; extract hooks/components when larger.
+- **State selection**:
+  | Scenario | Tool |
+  | --- | --- |
+  | Component-local | `useState` |
+  | Cross-component UI | Context provider |
+  | Server data | TanStack Query (`useQuery`/`useMutation`) |
+  | Persistent non-sensitive | AsyncStorage (with safeguards) |
+  | Sensitive | SecureStore |
+  | Complex client filters/auth | Zustand stores (with persist + pagination reset) |
+- **Navigation type safety**: Always leverage `NativeStackScreenProps` (or appropriate navigator types) and keep params serializable for deep linking.
+- **Deep linking**: Route all external URL handling through `useDeepLinking`/central config; no ad-hoc Linking listeners.
+- **Error handling**: Wrap async calls, surface actionable errors/toasts, and log with the agreed tooling (Flipper/Reactotron) instead of noisy `console.log`.
+
+## 4. 🟢 Recommended Practices
+- **Naming**: Components (PascalCase.tsx), hooks (`useCamelCase.ts`), utils (`camelCase.ts`), stores/types (PascalCase), constants (SCREAMING_SNAKE_CASE).
+- **Performance triggers**:
+  - Expensive component → `React.memo`
+  - Heavy computation → `useMemo`
+  - Stable callbacks → `useCallback`
+  - Lists → `FlatList`/`SectionList` rather than `ScrollView` + `.map`
+  - Imports → prefer named imports to limit bundle size
+- **Styling decision hints**: static/dynamic classes stay in `className`; runtime-calculated dimensions can fall back to `style={{}}` paired with NativeWind classes; animations go through Reanimated.
+- **Feature cadence**: 1) Types in `src/types` (or colocated), 2) Services/API client, 3) Hooks, 4) UI components/screens, 5) Navigation entries, 6) Providers if new global state, 7) Tests/docs.
+
+## 5. Codex Workflow & Communication
+1. **Baseline check**: Re-read `.cursorrules`, `.claude/CLAUDE.md`, `docs/react-native-migration.md`, and `docs/todo-list.md` before starting work to confirm priorities.
+2. **Plan → implement → verify**: Break work into substeps, keep diffs scoped, avoid opportunistic refactors unless they unblock the request.
+3. **Expo compatibility audit**: Confirm every dependency or API works under Expo managed + Hermes before using it.
+4. **Documentation discipline**: Only add concise comments when behavior isn’t obvious. Reference the originating web implementation when porting logic.
+5. **Summaries**: Report touched files with paths + line numbers, remaining risks, and manual/automated verification steps. If blocked, propose at least two options.
+6. **Commands**: Prefer `rg`, respect sandbox rules, and never use destructive git commands unless the user explicitly requests them.
+
+## 6. Testing & QA
+- **Automated**: Add/maintain tests for stores, hooks, and utilities. Mock network + SecureStore. Consider adding React Query cache assertions for optimistic flows.
+- **Manual checklist**: Verify auth login/logout, filter persistence + pagination reset, optimistic mutation rollback, deep link handling, and dark-theme visuals per `.cursorrules`.
+- **React Query DevTools**: Guard behind `__DEV__`. Keep console output clean; prefer Flipper/Reactotron.
+- **Pre-commit gate**: Run `npx tsc --noEmit` and relevant tests/scripts before marking work complete.
+
+## 7. Decision Aids & Checklists
+- **Styling decision tree**:
+  ```
+  Need to style component?
+  ├─ Static classes? → className="flex-1 bg-background p-4"
+  ├─ Dynamic tokens? → className={`p-${spacing} ${isDark ? 'bg-surface' : 'bg-card'}`}
+  ├─ Runtime computed? → className + style={{ width: computedWidth }}
+  └─ Animation? → className + react-native-reanimated
+  ```
+- **State management decision tree**:
+  ```
+  Where should data live?
+  ├─ Component-only → useState/useReducer
+  ├─ Cross-screen UI → Context provider
+  ├─ Server data → TanStack Query (useQuery/useMutation)
+  ├─ Persist non-sensitive → AsyncStorage (with guards)
+  └─ Sensitive credentials → SecureStore (never AsyncStorage)
+  ```
+- **New feature flow**:
+  ```
+  1. Define types (src/types or colocated)
+  2. Implement service/api client
+  3. Create reusable hook (if logic repeats)
+  4. Build screen/component
+  5. Register navigation + deep link config
+  6. Add provider/state wiring if needed
+  7. Tests + docs + QA checklist
+  ```
+- **File placement helper**:
+  ```
+  Reusable UI? → src/components/
+  Screen? → src/screens/
+  Navigation setup? → src/navigation/
+  Reusable logic? → src/hooks/
+  API/service? → src/services/api/
+  Provider/global context? → src/providers/
+  Client state store? → src/store/
+  Helpers? → src/utils/
+  Shared contracts? → src/types/
+  ```
+- **Pre-handoff checklist**:
+  - [ ] `npx tsc --noEmit` passes (strict, no `@ts-ignore`)
+  - [ ] Files live in correct `src/` subdirectories
+  - [ ] Sensitive data exclusively in SecureStore
+  - [ ] NativeWind `className` used; StyleSheet justified if present
+  - [ ] Navigation types/routes/deep links updated
+  - [ ] Query keys + invalidation rules follow `services/api/queryKeys.ts`
+- **Code review triggers**:
+  - New screen? confirm `RootStackParamList` + linking updates.
+  - Storage changes? ensure SecureStore vs AsyncStorage choice aligns with sensitivity.
+  - Styling edits? verify `className` usage and theme tokens.
+  - Platform APIs? double-check Expo module equivalents.
+  - Global state? ensure providers/stores are registered in `AppProviders`.
+  - Deep linking? keep logic inside `useDeepLinking`/config, no scattered listeners.
+- **Security checklist**:
+  - [ ] Tokens/credentials stored only via SecureStore.
+  - [ ] API keys/config drawn from env helpers, never hardcoded.
+  - [ ] User input validated/sanitized before network calls.
+  - [ ] No sensitive info logged to console or error messages.
+  - [ ] `.env`/secrets excluded from git (respect `.gitignore`).
+
+## 8. Anti-Pattern Radar (Reject Immediately)
+| ❌ | ✅ | Reason |
+| --- | --- | --- |
+| `any`, `@ts-ignore` | Proper types/guards | Keeps strict TS contract |
+| `StyleSheet.create` for routine styling | `className` with NativeWind | Consistent theming |
+| Inline style soup | Tokenized Tailwind classes | Maintainable styling |
+| AsyncStorage for tokens | SecureStore | Security mandate |
+| Files dumped in root | Sorted `src/` subdir | Project hygiene |
+| `import * as lib` | Named imports | Bundle control |
+| `ScrollView` + `.map` lists | `FlatList`/`SectionList` | Performance |
+| Manual `Linking` listeners | `useDeepLinking` | Centralized routing |
+| Blind `Platform.OS` branches | Expo abstractions | Cross-platform stability |
+
+## 9. Quick Reference
+- **Key paths**: `App.tsx`, `src/providers/*`, `src/navigation/*`, `src/services/api/*`, `src/store/*`, `src/screens/*`, `src/components/ui/*`.
+- **Theme tokens**: `background #090b11`, `surface #11131a`, `card #181c25`, `accent #5b8cf7`, `textPrimary #f8fafc`, `textSecondary #94a3b8`, `success #22c55e`, `danger #ef4444`.
+- **Phase tracker**: Phase 1 ✅; Phase 2‑3 🚧 (auth service, magic-link + OAuth UI, filter store with debounce/persist, data hooks); Phase 4‑7 ⏳ (dashboard, signal detail tabs, prediction session gating, feature flags, analytics, E2E).
+- **API caching guidance**: Reuse `SIGNAL_KEYS`, `PREDICTION_KEYS`, etc.; set `staleTime` 30 s (real-time), 5 min (dynamic), 1 h (static); support optimistic updates with rollback.
+- **Commit convention**: `feat|fix|refactor|style|docs|test|chore: <summary>` per `.cursorrules`.
+
+## 10. Claude Code Integration
+- **When creating files**: Run through the decision trees above, place code in the correct `src/` subdirectory, and follow the naming conventions (PascalCase components, `useCamelCase` hooks, etc.).
+- **When editing code**: Match the existing structure (imports order, hooks → handlers → render), keep `AppProviders → RootNavigator` wiring intact, and maintain strict typing.
+- **When adding features**: Follow the 7-step flow (types → service → hook → UI → navigation → provider → tests/docs) and cross-check against the originating web implementation for parity.
+- **When styling**: Default to NativeWind `className`, leverage token palette, and only fall back to inline `style={{}}` for computed dimensions or animation edge cases.
+- **Before completion**: Run `npx tsc --noEmit`, execute relevant tests, ensure the pre-handoff + security checklists pass, and verify deep links plus navigation types.
+
+When architecture or process changes land, update `.cursorrules`, `.claude/CLAUDE.md`, and this `.codexrules` file together so every assistant operates with identical constraints.
